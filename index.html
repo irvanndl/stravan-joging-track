@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#0F0F0F" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="description" content="Stravan - Lacak aktivitas lari Anda. Pantau jarak, pace, kalori, dan rute secara real-time." />
+  <title>Stravan - Running Tracker</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="src/style/index.css" />
+</head>
+<body>
+  <div id="app">
+    <!-- Splash Screen -->
+    <div id="splash-screen">
+      <div class="splash-logo">
+        <div class="splash-icon">
+          <svg width="40" height="40" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <!-- Running figure -->
+            <circle cx="34" cy="12" r="4" fill="white"/>
+            <path d="M30 18 L24 24 L28 30 L24 40" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+            <path d="M24 24 L18 20" stroke="white" stroke-width="3" stroke-linecap="round" fill="none"/>
+            <path d="M28 30 L34 34" stroke="white" stroke-width="3" stroke-linecap="round" fill="none"/>
+            <path d="M24 40 L18 44" stroke="white" stroke-width="3" stroke-linecap="round" fill="none"/>
+            <path d="M24 40 L30 44" stroke="white" stroke-width="3" stroke-linecap="round" fill="none"/>
+          </svg>
+        </div>
+        <h1 class="splash-title">Stravan</h1>
+        <p class="splash-sub">Lacak setiap langkah larimu</p>
+      </div>
+      <div class="splash-loader">
+        <div class="loader-bar"></div>
+      </div>
+    </div>
+
+    <!-- Main App (shown after splash) -->
+    <div id="main-app" class="hidden">
+      <!-- Page content renders here -->
+      <div id="page-container"></div>
+
+      <!-- Bottom Navigation -->
+      <nav class="bottom-nav" id="bottom-nav">
+        <button class="nav-btn active" data-page="home" id="nav-home" aria-label="Home">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+            <polyline points="9 22 9 12 15 12 15 22"/>
+          </svg>
+          <span class="nav-label">Home</span>
+        </button>
+
+        <button class="nav-btn" data-page="run" id="nav-run" aria-label="Mulai Lari">
+          <div class="nav-run-center">
+            <svg class="nav-icon-run" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="13" cy="4" r="2"/>
+              <path d="m16 8-3 7-4-2-3 7"/>
+              <path d="m16 8 3 7"/>
+            </svg>
+          </div>
+          <span class="nav-label">Run</span>
+        </button>
+
+        <button class="nav-btn" data-page="history" id="nav-history" aria-label="History">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <polyline points="12 6 12 12 16 14"/>
+          </svg>
+          <span class="nav-label">History</span>
+        </button>
+
+        <button class="nav-btn" data-page="profile" id="nav-profile" aria-label="Profile">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+            <circle cx="12" cy="7" r="4"/>
+          </svg>
+          <span class="nav-label">Profile</span>
+        </button>
+      </nav>
+    </div>
+  </div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV/XN/WPeE=" crossorigin=""></script>
+
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>
