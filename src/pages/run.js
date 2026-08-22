@@ -152,21 +152,30 @@ function bindControls(container) {
 }
 
 let initialPos = null;
+let preWatchId = null;
 
 function requestGPS() {
   if (!navigator.geolocation) {
-    updateGPSBadge(false);
+    updateGPSBadge(false, 'GPS Tidak Didukung');
     showToast('GPS tidak tersedia di browser ini', 'error');
     return;
   }
-  navigator.geolocation.getCurrentPosition(
+
+  updateGPSBadge(false, 'Mencari Sinyal GPS...');
+
+  // Start continuous pre-watch immediately to warm up satellite fix
+  if (preWatchId !== null) {
+    navigator.geolocation.clearWatch(preWatchId);
+  }
+
+  preWatchId = navigator.geolocation.watchPosition(
     (pos) => {
       const { latitude: lat, longitude: lng } = pos.coords;
       initialPos = { lat, lng };
-      updateGPSBadge(true);
-      if (state.map) {
+      updateGPSBadge(true, 'GPS Aktif');
+
+      if (state.status === 'idle' && state.map) {
         state.map.setView([lat, lng], 16);
-        // Blue dot for current position
         if (!state.marker) {
           state.marker = L.circleMarker([lat, lng], {
             radius: 10,
@@ -178,26 +187,33 @@ function requestGPS() {
         } else {
           state.marker.setLatLng([lat, lng]);
         }
+      } else if (state.status === 'running') {
+        onGPSUpdate(pos);
       }
     },
     (err) => {
-      console.warn('GPS init error:', err);
-      updateGPSBadge(false);
+      console.warn('GPS watch error:', err);
+      if (err.code === 1) { // PERMISSION_DENIED
+        updateGPSBadge(false, 'Izin Lokasi Ditolak');
+        showToast('Izin lokasi ditolak. Aktifkan GPS di pengaturan browser.', 'error');
+      } else {
+        updateGPSBadge(false, 'Mencari Sinyal GPS...');
+      }
     },
-    { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 }
+    { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
   );
 }
 
-function updateGPSBadge(ok) {
+function updateGPSBadge(ok, text = '') {
   const dot = document.getElementById('gps-dot');
   const txt = document.getElementById('gps-status-text');
   if (!dot || !txt) return;
   if (ok) {
     dot.classList.remove('waiting');
-    txt.textContent = 'GPS Aktif';
+    txt.textContent = text || 'GPS Aktif';
   } else {
     dot.classList.add('waiting');
-    txt.textContent = 'GPS Menunggu Sinyal';
+    txt.textContent = text || 'GPS Menunggu Sinyal';
   }
 }
 
@@ -213,6 +229,10 @@ function startRun(container) {
   if (initialPos && state.coords.length === 0) {
     state.coords.push({ lat: initialPos.lat, lng: initialPos.lng });
     state.lastCoord = { ...initialPos };
+  } else if (state.map && state.coords.length === 0) {
+    const center = state.map.getCenter();
+    state.coords.push({ lat: center.lat, lng: center.lng });
+    state.lastCoord = { lat: center.lat, lng: center.lng };
   }
 
   // Also immediately request current precise position to guarantee start coordinate
@@ -221,17 +241,7 @@ function startRun(container) {
       onGPSUpdate(pos);
     },
     (err) => console.warn('Instant GPS fetch error:', err),
-    { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
-  );
-
-  // Start GPS continuous watch
-  state.watchId = navigator.geolocation.watchPosition(
-    (pos) => onGPSUpdate(pos),
-    (err) => {
-      console.warn('Watch GPS error:', err);
-      updateGPSBadge(false);
-    },
-    { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 }
+    { enableHighAccuracy: true, timeout: 6000, maximumAge: 0 }
   );
 
   // Start timer
@@ -246,22 +256,23 @@ function startRun(container) {
 }
 
 function onGPSUpdate(pos) {
-  const { latitude: lat, longitude: lng, speed, accuracy } = pos.coords;
+  const { latitude: lat, longitude: lng, speed } = pos.coords;
   const newCoord = { lat, lng };
-  updateGPSBadge(true);
+  initialPos = newCoord;
+  updateGPSBadge(true, 'GPS Aktif');
 
   if (state.lastCoord && state.status === 'running') {
     const dist = haversineDistance(
       state.lastCoord.lat, state.lastCoord.lng,
       lat, lng
     );
-    // Add point if moved at least 2m or if it's been a few updates
-    if (dist >= 0.002 && dist <= 0.2) {
+    // Add point if moved at least 2m or if interval passed
+    if (dist >= 0.002 && dist <= 0.3) {
       state.distance += dist;
       state.lastCoord = newCoord;
       state.coords.push({ lat, lng });
-    } else if (dist > 0.2) {
-      // Jump calibration, update anchor
+    } else if (dist > 0.3) {
+      // Re-anchor after large leap
       state.lastCoord = newCoord;
       state.coords.push({ lat, lng });
     }
@@ -274,7 +285,7 @@ function onGPSUpdate(pos) {
 
   // Update speed display
   const speedEl = document.getElementById('run-speed');
-  if (speedEl && speed !== null) {
+  if (speedEl && speed !== null && speed >= 0) {
     speedEl.textContent = (speed * 3.6).toFixed(1);
   }
 
@@ -305,26 +316,31 @@ function onGPSUpdate(pos) {
 function pauseRun(container) {
   state.status = 'paused';
   clearInterval(state.timerInterval);
-  if (state.watchId !== null) {
-    navigator.geolocation.clearWatch(state.watchId);
-    state.watchId = null;
-  }
   refreshControls(container);
   showToast('Lari dijeda ⏸', 'info');
 }
 
 function stopRun(container) {
-  if (state.distance < 0.01 && state.duration < 5) {
+  if (state.distance < 0.01 && state.duration < 3) {
     discardRun();
     showToast('Sesi lari dibatalkan', 'info');
     refreshControls(container);
     return;
   }
   clearInterval(state.timerInterval);
-  if (state.watchId !== null) {
-    navigator.geolocation.clearWatch(state.watchId);
-    state.watchId = null;
+
+  // Guarantee state.coords is never empty
+  if (state.coords.length === 0) {
+    if (initialPos) {
+      state.coords.push({ lat: initialPos.lat, lng: initialPos.lng });
+    } else if (state.lastCoord) {
+      state.coords.push({ lat: state.lastCoord.lat, lng: state.lastCoord.lng });
+    } else if (state.map) {
+      const c = state.map.getCenter();
+      state.coords.push({ lat: c.lat, lng: c.lng });
+    }
   }
+
   showSaveScreen();
 }
 
@@ -483,6 +499,10 @@ export function cleanupRun() {
   if (state.watchId !== null) {
     navigator.geolocation.clearWatch(state.watchId);
     state.watchId = null;
+  }
+  if (preWatchId !== null) {
+    navigator.geolocation.clearWatch(preWatchId);
+    preWatchId = null;
   }
   if (state.map) {
     state.map.remove();
