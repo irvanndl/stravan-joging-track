@@ -5,6 +5,7 @@ import { getWeeklyStats, getRuns, getProfile } from '../utils/storage.js';
 import { formatDistance, formatDuration, formatDate, formatTime, getGreeting, QUOTES } from '../utils/geo.js';
 import { getCurrentUser } from '../utils/firebase.js';
 import { openAuthModal } from '../components/authModal.js';
+import { renderRouteMap } from '../utils/mapHelper.js';
 
 export function renderHome(container) {
   const stats = getWeeklyStats();
@@ -219,33 +220,10 @@ export function showRunDetail(run) {
 
   document.body.appendChild(overlay);
 
-  // Render route map
-  const latLngs = (run.coords || []).map(c => Array.isArray(c) ? [c[0], c[1]] : [c.lat, c.lng]);
-  if (latLngs.length > 0 && window.L) {
-    setTimeout(() => {
-      try {
-        const map = L.map('detail-map', { zoomControl: false, dragging: false, scrollWheelZoom: false });
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-
-        if (latLngs.length > 1) {
-          const poly = L.polyline(latLngs, { color: '#FF6B35', weight: 4 }).addTo(map);
-          map.fitBounds(poly.getBounds(), { padding: [16, 16] });
-          L.circleMarker(latLngs[0], { radius: 8, fillColor: '#22C55E', color: 'white', weight: 2, fillOpacity: 1 }).addTo(map);
-          L.circleMarker(latLngs[latLngs.length - 1], { radius: 8, fillColor: '#FF6B35', color: 'white', weight: 2, fillOpacity: 1 }).addTo(map);
-        } else {
-          map.setView(latLngs[0], 16);
-          L.circleMarker(latLngs[0], { radius: 10, fillColor: '#FF6B35', color: 'white', weight: 3, fillOpacity: 1 }).addTo(map);
-        }
-        setTimeout(() => map.invalidateSize(), 200);
-      } catch (err) {
-        console.error('Error rendering detail map:', err);
-      }
-    }, 150);
-  } else {
-    document.getElementById('detail-map').innerHTML = `
-      <div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--clr-text-3);font-size:0.85rem;">Rute tidak tersedia</div>
-    `;
-  }
+  // Render route map with Google Maps / Leaflet
+  setTimeout(() => {
+    renderRouteMap('detail-map', run.coords, false);
+  }, 100);
 
   const close = () => {
     overlay.style.animation = 'none';

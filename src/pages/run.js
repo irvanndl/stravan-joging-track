@@ -5,6 +5,7 @@
 import { haversineDistance, calcPace, calcCalories, formatDuration, formatDistance } from '../utils/geo.js';
 import { getProfile, saveRun } from '../utils/storage.js';
 import { showToast } from '../main.js';
+import { renderRouteMap } from '../utils/mapHelper.js';
 
 // State
 let state = {
@@ -302,9 +303,18 @@ function onGPSUpdate(pos) {
 
     if (state.status === 'running') {
       const latLngs = state.coords.map(c => [c.lat, c.lng]);
+
+      // Start Marker (Green dot)
+      if (latLngs.length > 0 && !state.startMarker) {
+        state.startMarker = L.circleMarker(latLngs[0], {
+          radius: 8, fillColor: '#22C55E', color: 'white', weight: 2, fillOpacity: 1,
+        }).addTo(state.map);
+      }
+
+      // Polyline route trail
       if (!state.polyline) {
         state.polyline = L.polyline(latLngs, {
-          color: '#FF6B35', weight: 5, opacity: 0.9,
+          color: '#FF6B35', weight: 5, opacity: 0.95,
         }).addTo(state.map);
       } else {
         state.polyline.setLatLngs(latLngs);
@@ -414,39 +424,10 @@ function showSaveScreen() {
 
   document.body.appendChild(screen);
 
-  // Render save map
+  // Render save map with Google Maps / Leaflet
   setTimeout(() => {
-    const latLngs = (state.coords || []).map(c => Array.isArray(c) ? [c[0], c[1]] : [c.lat, c.lng]);
-    if (latLngs.length > 0 && window.L) {
-      try {
-        state.saveMap = L.map('save-map-el', { zoomControl: false, dragging: false, scrollWheelZoom: false });
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(state.saveMap);
-
-        if (latLngs.length > 1) {
-          const poly = L.polyline(latLngs, { color: '#FF6B35', weight: 5 }).addTo(state.saveMap);
-          state.saveMap.fitBounds(poly.getBounds(), { padding: [20, 20] });
-          L.circleMarker(latLngs[0], { radius: 8, fillColor: '#22C55E', color: 'white', weight: 2, fillOpacity: 1 }).addTo(state.saveMap);
-          L.circleMarker(latLngs[latLngs.length - 1], { radius: 8, fillColor: '#FF6B35', color: 'white', weight: 2, fillOpacity: 1 }).addTo(state.saveMap);
-        } else {
-          state.saveMap.setView(latLngs[0], 16);
-          L.circleMarker(latLngs[0], { radius: 10, fillColor: '#FF6B35', color: 'white', weight: 3, fillOpacity: 1 }).addTo(state.saveMap);
-        }
-        setTimeout(() => state.saveMap?.invalidateSize(), 200);
-      } catch (err) {
-        console.error('Error rendering save map:', err);
-      }
-    } else {
-      const mapEl = document.getElementById('save-map-el');
-      if (mapEl) {
-        mapEl.innerHTML = `
-          <div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--clr-text-3);font-size:0.85rem;flex-direction:column;gap:8px;">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-            Rute GPS tidak terekam
-          </div>
-        `;
-      }
-    }
-  }, 150);
+    renderRouteMap('save-map-el', state.coords, false);
+  }, 100);
 
   screen.querySelector('#btn-save-run').addEventListener('click', () => {
     saveRun({
@@ -489,7 +470,7 @@ function discardRun() {
   state = {
     status: 'idle', startedAt: null, duration: 0, distance: 0,
     coords: [], lastCoord: null, watchId: null, timerInterval: null,
-    map: state.map, polyline: null, marker: null, saveMap: null,
+    map: state.map, polyline: null, marker: null, startMarker: null, saveMap: null,
   };
 }
 
