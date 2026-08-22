@@ -1,44 +1,7 @@
 // =============================================
 // MAP HELPER — Stravan
-// Google Maps API integration with Leaflet fallback
+// Premium Dark Sport Map (Fast, Free, No Watermarks)
 // =============================================
-
-const GOOGLE_MAPS_KEY = "AIzaSyC7d_YLtxXpi6oYoHCjykbHnQXs-zqNXY0";
-
-// Ensure Google Maps Script is Loaded
-let googleMapsLoaded = false;
-let googleMapsPromise = null;
-
-export function loadGoogleMaps() {
-  if (googleMapsLoaded && window.google && window.google.maps) {
-    return Promise.resolve(window.google.maps);
-  }
-  if (googleMapsPromise) return googleMapsPromise;
-
-  googleMapsPromise = new Promise((resolve) => {
-    if (window.google && window.google.maps) {
-      googleMapsLoaded = true;
-      resolve(window.google.maps);
-      return;
-    }
-
-    const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_KEY}&libraries=geometry`;
-    script.async = true;
-    script.defer = true;
-    script.onload = () => {
-      googleMapsLoaded = true;
-      resolve(window.google.maps);
-    };
-    script.onerror = () => {
-      console.warn('Google Maps API failed to load, falling back to Leaflet...');
-      resolve(null);
-    };
-    document.head.appendChild(script);
-  });
-
-  return googleMapsPromise;
-}
 
 /**
  * Render Route Map on a container element
@@ -46,11 +9,11 @@ export function loadGoogleMaps() {
  * @param {Array<{lat: number, lng: number}>} coords - Array of coordinates
  * @param {boolean} interactive - Allow drag/zoom or keep static
  */
-export async function renderRouteMap(containerId, coords = [], interactive = false) {
+export function renderRouteMap(containerId, coords = [], interactive = false) {
   const container = typeof containerId === 'string' ? document.getElementById(containerId) : containerId;
   if (!container) return null;
 
-  // Clean container
+  // Clean previous content and previous Leaflet instance if any
   container.innerHTML = '';
 
   // Normalize coords
@@ -73,148 +36,87 @@ export async function renderRouteMap(containerId, coords = [], interactive = fal
     return null;
   }
 
-  // Try Google Maps first
-  const gmaps = await loadGoogleMaps();
-  if (gmaps) {
-    try {
-      const mapOptions = {
-        zoom: 16,
-        center: cleanCoords[0],
-        disableDefaultUI: !interactive,
-        zoomControl: interactive,
-        mapTypeControl: false,
-        streetViewControl: false,
-        fullscreenControl: false,
-        gestureHandling: interactive ? 'auto' : 'none',
-        styles: [
-          { elementType: "geometry", stylers: [{ color: "#242f3e" }] },
-          { elementType: "labels.text.stroke", stylers: [{ color: "#242f3e" }] },
-          { elementType: "labels.text.fill", stylers: [{ color: "#746855" }] },
-          {
-            featureType: "administrative.locality",
-            elementType: "labels.text.fill",
-            stylers: [{ color: "#d59563" }],
-          },
-          {
-            featureType: "road",
-            elementType: "geometry",
-            stylers: [{ color: "#38414e" }],
-          },
-          {
-            featureType: "road",
-            elementType: "geometry.stroke",
-            stylers: [{ color: "#212a37" }],
-          },
-          {
-            featureType: "road",
-            elementType: "labels.text.fill",
-            stylers: [{ color: "#9ca5b3" }],
-          },
-          {
-            featureType: "water",
-            elementType: "geometry",
-            stylers: [{ color: "#17263c" }],
-          },
-        ]
-      };
-
-      const gMap = new gmaps.Map(container, mapOptions);
-
-      // Draw Route Polyline
-      if (cleanCoords.length > 1) {
-        const polyline = new gmaps.Polyline({
-          path: cleanCoords,
-          geodesic: true,
-          strokeColor: '#FF6B35',
-          strokeOpacity: 1.0,
-          strokeWeight: 5,
-        });
-        polyline.setMap(gMap);
-
-        // Adjust bounds
-        const bounds = new gmaps.LatLngBounds();
-        cleanCoords.forEach(c => bounds.extend(c));
-        gMap.fitBounds(bounds, { top: 30, bottom: 30, left: 30, right: 30 });
-      }
-
-      // Start Marker (Green)
-      new gmaps.Marker({
-        position: cleanCoords[0],
-        map: gMap,
-        title: 'Mulai',
-        icon: {
-          path: gmaps.SymbolPath.CIRCLE,
-          scale: 7,
-          fillColor: '#22C55E',
-          fillOpacity: 1,
-          strokeColor: '#FFFFFF',
-          strokeWeight: 2,
-        },
-      });
-
-      // End Marker (Orange) if > 1
-      if (cleanCoords.length > 1) {
-        new gmaps.Marker({
-          position: cleanCoords[cleanCoords.length - 1],
-          map: gMap,
-          title: 'Selesai',
-          icon: {
-            path: gmaps.SymbolPath.CIRCLE,
-            scale: 7,
-            fillColor: '#FF6B35',
-            fillOpacity: 1,
-            strokeColor: '#FFFFFF',
-            strokeWeight: 2,
-          },
-        });
-      }
-
-      setTimeout(() => {
-        gmaps.event.trigger(gMap, 'resize');
-        if (cleanCoords.length > 1) {
-          const bounds = new gmaps.LatLngBounds();
-          cleanCoords.forEach(c => bounds.extend(c));
-          gMap.fitBounds(bounds, { top: 30, bottom: 30, left: 30, right: 30 });
-        }
-      }, 200);
-
-      return gMap;
-    } catch (err) {
-      console.warn('Google Maps render failed, trying Leaflet fallback:', err);
-    }
+  // Use Leaflet with Dark Matter Sport Tiles (100% Free & No Billing Errors)
+  if (!window.L) {
+    console.error('Leaflet library is not loaded');
+    return null;
   }
 
-  // Fallback: Leaflet Map
-  if (window.L) {
-    try {
-      const latLngs = cleanCoords.map(c => [c.lat, c.lng]);
-      const lMap = L.map(container, {
-        zoomControl: interactive,
-        dragging: interactive,
-        scrollWheelZoom: interactive,
-        touchZoom: interactive,
-      });
+  try {
+    const latLngs = cleanCoords.map(c => [c.lat, c.lng]);
+    const lMap = L.map(container, {
+      zoomControl: interactive,
+      dragging: interactive,
+      scrollWheelZoom: interactive,
+      touchZoom: interactive,
+      attributionControl: false,
+    });
 
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
+    // Dark Matter Map Tiles (Ultra sleek dark theme matching Strava)
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      maxZoom: 19,
+      subdomains: 'abcd',
+    }).addTo(lMap);
+
+    if (latLngs.length > 1) {
+      // Background glow line
+      L.polyline(latLngs, {
+        color: 'rgba(255, 107, 53, 0.4)',
+        weight: 8,
+        lineCap: 'round',
+        lineJoin: 'round',
       }).addTo(lMap);
 
-      if (latLngs.length > 1) {
-        const poly = L.polyline(latLngs, { color: '#FF6B35', weight: 5 }).addTo(lMap);
-        lMap.fitBounds(poly.getBounds(), { padding: [25, 25] });
-        L.circleMarker(latLngs[0], { radius: 8, fillColor: '#22C55E', color: 'white', weight: 2, fillOpacity: 1 }).addTo(lMap);
-        L.circleMarker(latLngs[latLngs.length - 1], { radius: 8, fillColor: '#FF6B35', color: 'white', weight: 2, fillOpacity: 1 }).addTo(lMap);
-      } else {
-        lMap.setView(latLngs[0], 16);
-        L.circleMarker(latLngs[0], { radius: 10, fillColor: '#FF6B35', color: 'white', weight: 3, fillOpacity: 1 }).addTo(lMap);
-      }
+      // Main orange route line
+      const poly = L.polyline(latLngs, {
+        color: '#FF6B35',
+        weight: 5,
+        opacity: 1.0,
+        lineCap: 'round',
+        lineJoin: 'round',
+      }).addTo(lMap);
 
-      setTimeout(() => lMap.invalidateSize(), 200);
-      return lMap;
-    } catch (lErr) {
-      console.error('Leaflet fallback error:', lErr);
+      lMap.fitBounds(poly.getBounds(), { padding: [30, 30] });
+
+      // Start Marker (Green Pin)
+      L.circleMarker(latLngs[0], {
+        radius: 8,
+        fillColor: '#22C55E',
+        color: '#FFFFFF',
+        weight: 2.5,
+        fillOpacity: 1,
+      }).addTo(lMap).bindPopup('🟢 Titik Mulai');
+
+      // Finish Marker (Orange Pin)
+      L.circleMarker(latLngs[latLngs.length - 1], {
+        radius: 8,
+        fillColor: '#FF6B35',
+        color: '#FFFFFF',
+        weight: 2.5,
+        fillOpacity: 1,
+      }).addTo(lMap).bindPopup('🏁 Titik Selesai');
+    } else {
+      lMap.setView(latLngs[0], 16);
+      L.circleMarker(latLngs[0], {
+        radius: 10,
+        fillColor: '#FF6B35',
+        color: '#FFFFFF',
+        weight: 3,
+        fillOpacity: 1,
+      }).addTo(lMap).bindPopup('📍 Lokasi Lari');
     }
-  }
 
-  return null;
+    setTimeout(() => {
+      lMap.invalidateSize();
+      if (latLngs.length > 1) {
+        const poly = L.polyline(latLngs);
+        lMap.fitBounds(poly.getBounds(), { padding: [30, 30] });
+      }
+    }, 200);
+
+    return lMap;
+  } catch (err) {
+    console.error('Error rendering route map:', err);
+    return null;
+  }
 }
