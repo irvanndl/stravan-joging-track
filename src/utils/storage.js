@@ -82,7 +82,21 @@ export function getRuns() {
 export async function saveRun(run) {
   const runs = getRuns();
   const runId = run.id || Date.now().toString();
-  const runData = { ...run, id: runId, createdAt: new Date().toISOString() };
+  
+  // Ensure coords is an array of objects {lat, lng} (Firestore compliant)
+  const cleanCoords = (run.coords || []).map(c => {
+    if (Array.isArray(c)) {
+      return { lat: Number(c[0]), lng: Number(c[1]) };
+    }
+    return { lat: Number(c.lat), lng: Number(c.lng) };
+  });
+
+  const runData = { 
+    ...run, 
+    id: runId, 
+    coords: cleanCoords,
+    createdAt: new Date().toISOString() 
+  };
   
   // Save locally first (optimistic UI)
   runs.unshift(runData);

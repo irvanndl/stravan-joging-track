@@ -211,7 +211,7 @@ function startRun(container) {
 
   // If we already have an initial position from GPS init, seed it immediately!
   if (initialPos && state.coords.length === 0) {
-    state.coords.push([initialPos.lat, initialPos.lng]);
+    state.coords.push({ lat: initialPos.lat, lng: initialPos.lng });
     state.lastCoord = { ...initialPos };
   }
 
@@ -255,19 +255,20 @@ function onGPSUpdate(pos) {
       state.lastCoord.lat, state.lastCoord.lng,
       lat, lng
     );
-    // Ignore minor GPS jitter (< 2m) and ignore massive unnatural jumps (> 200m per interval)
+    // Add point if moved at least 2m or if it's been a few updates
     if (dist >= 0.002 && dist <= 0.2) {
       state.distance += dist;
       state.lastCoord = newCoord;
-      state.coords.push([lat, lng]);
-    } else if (dist > 0.002 && dist > 0.2) {
-      // Large jump, reset anchor without adding false distance
+      state.coords.push({ lat, lng });
+    } else if (dist > 0.2) {
+      // Jump calibration, update anchor
       state.lastCoord = newCoord;
+      state.coords.push({ lat, lng });
     }
   } else if (state.status === 'running') {
     state.lastCoord = newCoord;
     if (state.coords.length === 0) {
-      state.coords.push([lat, lng]);
+      state.coords.push({ lat, lng });
     }
   }
 
@@ -289,12 +290,13 @@ function onGPSUpdate(pos) {
     }
 
     if (state.status === 'running') {
+      const latLngs = state.coords.map(c => [c.lat, c.lng]);
       if (!state.polyline) {
-        state.polyline = L.polyline([[lat, lng]], {
+        state.polyline = L.polyline(latLngs, {
           color: '#FF6B35', weight: 5, opacity: 0.9,
         }).addTo(state.map);
       } else {
-        state.polyline.addLatLng([lat, lng]);
+        state.polyline.setLatLngs(latLngs);
       }
     }
   }
@@ -398,19 +400,20 @@ function showSaveScreen() {
 
   // Render save map
   setTimeout(() => {
-    if (state.coords && state.coords.length > 0 && window.L) {
+    const latLngs = (state.coords || []).map(c => Array.isArray(c) ? [c[0], c[1]] : [c.lat, c.lng]);
+    if (latLngs.length > 0 && window.L) {
       try {
         state.saveMap = L.map('save-map-el', { zoomControl: false, dragging: false, scrollWheelZoom: false });
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(state.saveMap);
 
-        if (state.coords.length > 1) {
-          const poly = L.polyline(state.coords, { color: '#FF6B35', weight: 5 }).addTo(state.saveMap);
+        if (latLngs.length > 1) {
+          const poly = L.polyline(latLngs, { color: '#FF6B35', weight: 5 }).addTo(state.saveMap);
           state.saveMap.fitBounds(poly.getBounds(), { padding: [20, 20] });
-          L.circleMarker(state.coords[0], { radius: 8, fillColor: '#22C55E', color: 'white', weight: 2, fillOpacity: 1 }).addTo(state.saveMap);
-          L.circleMarker(state.coords[state.coords.length - 1], { radius: 8, fillColor: '#FF6B35', color: 'white', weight: 2, fillOpacity: 1 }).addTo(state.saveMap);
+          L.circleMarker(latLngs[0], { radius: 8, fillColor: '#22C55E', color: 'white', weight: 2, fillOpacity: 1 }).addTo(state.saveMap);
+          L.circleMarker(latLngs[latLngs.length - 1], { radius: 8, fillColor: '#FF6B35', color: 'white', weight: 2, fillOpacity: 1 }).addTo(state.saveMap);
         } else {
-          state.saveMap.setView(state.coords[0], 16);
-          L.circleMarker(state.coords[0], { radius: 10, fillColor: '#FF6B35', color: 'white', weight: 3, fillOpacity: 1 }).addTo(state.saveMap);
+          state.saveMap.setView(latLngs[0], 16);
+          L.circleMarker(latLngs[0], { radius: 10, fillColor: '#FF6B35', color: 'white', weight: 3, fillOpacity: 1 }).addTo(state.saveMap);
         }
         setTimeout(() => state.saveMap?.invalidateSize(), 200);
       } catch (err) {

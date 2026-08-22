@@ -220,20 +220,21 @@ export function showRunDetail(run) {
   document.body.appendChild(overlay);
 
   // Render route map
-  if (run.coords && run.coords.length > 0 && window.L) {
+  const latLngs = (run.coords || []).map(c => Array.isArray(c) ? [c[0], c[1]] : [c.lat, c.lng]);
+  if (latLngs.length > 0 && window.L) {
     setTimeout(() => {
       try {
         const map = L.map('detail-map', { zoomControl: false, dragging: false, scrollWheelZoom: false });
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-        if (run.coords.length > 1) {
-          const poly = L.polyline(run.coords, { color: '#FF6B35', weight: 4 }).addTo(map);
+        if (latLngs.length > 1) {
+          const poly = L.polyline(latLngs, { color: '#FF6B35', weight: 4 }).addTo(map);
           map.fitBounds(poly.getBounds(), { padding: [16, 16] });
-          L.circleMarker(run.coords[0], { radius: 8, fillColor: '#22C55E', color: 'white', weight: 2, fillOpacity: 1 }).addTo(map);
-          L.circleMarker(run.coords[run.coords.length - 1], { radius: 8, fillColor: '#FF6B35', color: 'white', weight: 2, fillOpacity: 1 }).addTo(map);
+          L.circleMarker(latLngs[0], { radius: 8, fillColor: '#22C55E', color: 'white', weight: 2, fillOpacity: 1 }).addTo(map);
+          L.circleMarker(latLngs[latLngs.length - 1], { radius: 8, fillColor: '#FF6B35', color: 'white', weight: 2, fillOpacity: 1 }).addTo(map);
         } else {
-          map.setView(run.coords[0], 16);
-          L.circleMarker(run.coords[0], { radius: 10, fillColor: '#FF6B35', color: 'white', weight: 3, fillOpacity: 1 }).addTo(map);
+          map.setView(latLngs[0], 16);
+          L.circleMarker(latLngs[0], { radius: 10, fillColor: '#FF6B35', color: 'white', weight: 3, fillOpacity: 1 }).addTo(map);
         }
         setTimeout(() => map.invalidateSize(), 200);
       } catch (err) {
